@@ -297,7 +297,8 @@
             this._reset();
             this._strokeUpdate(event);
         };
-        SignaturePad.prototype._strokeUpdate = function (event) {
+        SignaturePad.prototype._strokeUpdate = function (event, end) {
+            if (end === void 0) { end = false; }
             if (this._data.length === 0) {
                 this._strokeBegin(event);
                 return;
@@ -314,10 +315,7 @@
             var color = lastPointGroup.color;
             if (!lastPoint || !(lastPoint && isLastPointTooClose)) {
                 var curve = this._addPoint(point);
-                if (!lastPoint) {
-                    this._drawDot({ color: color, point: point });
-                }
-                else if (curve) {
+                if (curve) {
                     this._drawCurve({ color: color, curve: curve });
                 }
                 lastPoints.push({
@@ -326,9 +324,12 @@
                     y: point.y
                 });
             }
+            if (end && lastPoint && lastPoints.length === 1) {
+                this._drawDot({ color: color, point: point });
+            }
         };
         SignaturePad.prototype._strokeEnd = function (event) {
-            this._strokeUpdate(event);
+            this._strokeUpdate(event, true);
             if (typeof this.onEnd === 'function') {
                 this.onEnd(event);
             }

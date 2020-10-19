@@ -263,7 +263,7 @@ export default class SignaturePad {
     this._strokeUpdate(event);
   }
 
-  private _strokeUpdate(event: MouseEvent | Touch): void {
+  private _strokeUpdate(event: MouseEvent | Touch, end = false): void {
     if (this._data.length === 0) {
       // This can happen if clear() was called while a signature is still in progress,
       // or if there is a race condition between start/update events.
@@ -288,9 +288,7 @@ export default class SignaturePad {
     if (!lastPoint || !(lastPoint && isLastPointTooClose)) {
       const curve = this._addPoint(point);
 
-      if (!lastPoint) {
-        this._drawDot({ color, point });
-      } else if (curve) {
+      if (curve) {
         this._drawCurve({ color, curve });
       }
 
@@ -300,10 +298,15 @@ export default class SignaturePad {
         y: point.y,
       });
     }
+
+    // If final curve is just a single point, draw it as a dot
+    if (end && lastPoint && lastPoints.length === 1) {
+      this._drawDot({ color, point });
+    }
   }
 
   private _strokeEnd(event: MouseEvent | Touch): void {
-    this._strokeUpdate(event);
+    this._strokeUpdate(event, true);
 
     if (typeof this.onEnd === 'function') {
       this.onEnd(event);
