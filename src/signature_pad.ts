@@ -32,6 +32,12 @@ export interface Options {
   onEnd?: (event: MouseEvent | Touch) => void;
 }
 
+export interface ImageOptions {
+  ratio?: number;
+  width?: number;
+  height?: number;
+}
+
 export interface PointGroup {
   color: string;
   points: BasicPoint[];
@@ -57,6 +63,8 @@ export default class SignaturePad {
   private _isEmpty: boolean;
   private _lastPoints: Point[]; // Stores up to 4 most recent points; used to generate a new curve
   private _data: PointGroup[]; // Stores all points in groups (one group per line or dot)
+  private _image?: HTMLImageElement; // Stores the canvas image provided via dataURL
+  private _imageOptions?: ImageOptions;
   private _lastVelocity: number;
   private _lastWidth: number;
   private _strokeMoveUpdate: (event: MouseEvent | Touch) => void;
@@ -95,32 +103,27 @@ export default class SignaturePad {
   }
 
   public clear(): void {
-    const { _ctx: ctx, canvas } = this;
+    this._image = undefined;
+    this._imageOptions = undefined;
 
-    // Clear canvas using background color
-    ctx.fillStyle = this.backgroundColor;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Clear canvas
+    this._clearBackground();
 
-    this._data = [];
     this._reset();
     this._isEmpty = true;
   }
 
   public fromDataURL(
     dataUrl: string,
-    options: { ratio?: number; width?: number; height?: number } = {},
+    options: ImageOptions = {},
     callback?: (error?: string | Event) => void,
   ): void {
     const image = new Image();
-    const ratio = options.ratio || window.devicePixelRatio || 1;
-    const width = options.width || this.canvas.width / ratio;
-    const height = options.height || this.canvas.height / ratio;
 
     this._reset();
 
     image.onload = (): void => {
-      this._ctx.drawImage(image, 0, 0, width, height);
+      this._fromImage(image, options);
       if (callback) {
         callback();
       }
@@ -132,6 +135,8 @@ export default class SignaturePad {
     };
     image.src = dataUrl;
 
+    this._image = image;
+    this._imageOptions = options;
     this._isEmpty = false;
   }
 
@@ -183,7 +188,7 @@ export default class SignaturePad {
   }
 
   public fromData(pointGroups: PointGroup[]): void {
-    this.clear();
+    this._clearBackground();
 
     this._fromData(
       pointGroups,
@@ -448,6 +453,24 @@ export default class SignaturePad {
     ctx.fill();
   }
 
+  private _clearBackground(): void {
+    const { _ctx: ctx, canvas } = this;
+
+    // Clear canvas using background color
+    ctx.fillStyle = this.backgroundColor;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Restore background image, if set
+    if (this._image) {
+      this._fromImage(this._image, this._imageOptions);
+    }
+
+    this._data = [];
+    this._reset();
+    this._isEmpty = !this._image;
+  }
+
   private _drawDot({
     color,
     point,
@@ -502,6 +525,16 @@ export default class SignaturePad {
         });
       }
     }
+  }
+
+  private _fromImage(
+    image: HTMLImageElement,
+    options: ImageOptions = {},
+  ): void {
+    const ratio = options.ratio || window.devicePixelRatio || 1;
+    const width = options.width || this.canvas.width / ratio;
+    const height = options.height || this.canvas.height / ratio;
+    this._ctx.drawImage(image, 0, 0, width, height);
   }
 
   private _toSVG(): string {
